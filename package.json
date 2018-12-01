@@ -1,0 +1,29 @@
+{
+  "name": "recapitulation",
+  "version": "0.1.0",
+  "description": "Software rekapitulasi vote pemilu",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron . -d",
+    "postinstall": "install-app-deps"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pemiluhmif/recapitulation.git"
+  },
+  "author": "Divisi IT Pemilu HMIF 2019",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/pemiluhmif/recapitulation/issues"
+  },
+  "homepage": "https://github.com/pemiluhmif/recapitulation#readme",
+  "dependencies": {
+    "better-sqlite3": "^5.0.1",
+    "electron": "^3.0.10",
+    "yargs": "^12.0.5"
+  },
+  "devDependencies": {
+    "electron-builder": "^20.38.2"
+  }
+}
