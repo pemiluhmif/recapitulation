@@ -3,6 +3,8 @@ const Database = require('./database');
 const yargs = require('yargs');
 const fs = require('fs');
 
+const crypto = require('crypto');
+
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let win;
@@ -12,7 +14,7 @@ function createWindow () {
         width: 1024,
         height: 600,
         resizable: true
-    })
+    });
     // win.setMenu(null);
     // win.loadURL('');
     win.focus();
@@ -26,32 +28,46 @@ function createWindow () {
     });
 }
 
+function verifyData(data, sig){
+    let sigGen = crypto.createHash('sha256').update(data).digest('hex');
+    return sig===sigGen;
+}
+
+function verifyLastSig(data,sig,machineKey){
+    let sigGen = crypto.createHmac('sha256', machineKey).update(data).digest('hex');
+    return sigGen === sig;
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', ()=>{
     let argv = yargs.usage("Usage: $0 [options]")
-        .example("$0 -d --db myDb.db")
-        .example("$0")
+        .example("$0 -c --db myDb.db")
         .alias("h","help")
         .alias("v","version")
-        .alias("d","dump votes")
+        .alias("c","count")
         .alias("o","output")
-        .boolean("d")
-        .array("db")
+        .boolean("c")
+        .describe("c","Count vote")
+        .describe("o","Output JSON file")
+        .describe("db","Database location")
+        .nargs("db",1)
         .default("o","dump.json")
         .default("db","pemilu.db")
         .argv;
 
-    let status = Database.init(argv.db[0]);
+    let status = Database.init(argv.db);
 
     if(status["status"]){
         // Initial config
 
+        let json = {};
+        json['vote_data'] = Database.getVoteRecords();
+        json['last_signature'] = Database.getLastSignatures();
+
         if(argv.d){
-            let json = {};
-            json['vote_data'] = Database.getVoteRecords();
-            json['last_signature'] = Database.getLastSignatures();
+
 
             fs.writeFile(argv.o, JSON.stringify(json,null,4), 'utf8', (err)=>{
                 if(err){
@@ -62,10 +78,61 @@ app.on('ready', ()=>{
                     app.quit();
                 }
             });
+        }else if(argv.count){
+            let sigArr = json['last_signature'];
+            let records = {};
+
+            try {
+                sigArr.forEach((item) => {
+                    console.log("Processing "+item.node_id);
+                    let voteData = json['vote_data'].filter((vote) => (vote.node_id === item.node_id));
+                    voteData = voteData.reverse();
+
+                    let lastSig = item.last_signature;
+
+                    let authRaw = fs.readFileSync("auth_"+item.node_id+".json");
+                    let auth = JSON.parse(authRaw);
+                    if(auth.machine_key===undefined){
+                        throw new Error("Auth file seem invalid for "+item.node_id);
+                    }
+
+                    if(!verifyLastSig(item.last_signature,item.signature,auth.machine_key)){
+                        throw new Error("Last signature invalid for "+item.node_id);
+                    }
+
+                    voteData.forEach((vote) => {
+                        if(!verifyData(vote.voted_candidate,vote.signature)){
+                            throw new Error("Invalid sig "+vote.vote_id);
+                        }
+                        if (vote.signature === lastSig) {
+                            let voteData = JSON.parse(vote.voted_candidate);
+                            for(let typeVote in voteData.vote_data){
+                                if(records[typeVote]===undefined){
+                                    records[typeVote] = {};
+                                }
+                                if(records[typeVote][voteData.vote_data[typeVote]]===undefined){
+                                    records[typeVote][voteData.vote_data[typeVote]] = 0;
+                                }
+                                records[typeVote][voteData.vote_data[typeVote]]++;
+                            }
+                            lastSig = vote.previous_signature;
+                        } else {
+                            throw new Error("Chain broken "+vote.vote_id + " sig = " + vote.signature + " last = " + lastSig);
+                        }
+                    });
+
+                });
+                console.log("All data verified");
+                console.log(records);
+
+            } catch (e) {
+                console.error(e.message);
+            }
+
+
         }
 
-
-
+        app.quit();
         // createWindow();
 
     }else{

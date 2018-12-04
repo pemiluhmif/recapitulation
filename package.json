@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron . -d",
+    "start": "electron . --count --db=tps01.db",
     "postinstall": "install-app-deps"
   },
   "repository": {
