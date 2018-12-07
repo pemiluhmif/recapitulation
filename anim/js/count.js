@@ -60,8 +60,9 @@ function animAdd(voteData){
             $('#total-count').animate({'opacity': 0}, 400, function () {
                 $(this).text("Total suara = "+totalText);
             }).animate({'opacity': 1}, 400);
+            $("#return-button").animate({opacity:1},400);
         }
-    },100);
+    },200);
 }
 
 $( document ).ready(function() {

@@ -16,3 +16,10 @@ figure.image{
     background-position-x: center;
     background-position-y: center;
 }
+
+#return-button{
+    position: absolute;
+    top:1vh;
+    left:1vh;
+    opacity: 0;
+}
