@@ -1,4 +1,4 @@
-const { dialog, app, BrowserWindow } = require('electron');
+const { dialog, app, ipcMain, BrowserWindow } = require('electron');
 const Database = require('./database');
 const yargs = require('yargs');
 const fs = require('fs');
@@ -9,15 +9,24 @@ const crypto = require('crypto');
 // be closed automatically when the JavaScript object is garbage collected.
 let win;
 
+let voteResults = {};
+
 function createWindow () {
     win = new BrowserWindow({
         width: 1024,
         height: 600,
         resizable: true
     });
+
+    ipcMain.on("getVoteData",(event,args)=>{
+        event.returnValue = voteResults;
+    });
+
     // win.setMenu(null);
-    // win.loadURL('');
+    win.loadFile('anim/index.html');
     win.focus();
+    // win.webContents.openDevTools();
+    win.setFullScreen(true);
 
     // Emitted when the window is closed.
     win.on('closed', () => {
@@ -26,6 +35,8 @@ function createWindow () {
         // when you should delete the corresponding element.
         win = null
     });
+
+
 }
 
 function verifyData(data, sig){
@@ -49,12 +60,17 @@ app.on('ready', ()=>{
         .alias("c","count")
         .alias("o","output")
         .boolean("c")
+        .boolean("anim")
         .describe("c","Count vote")
         .describe("o","Output JSON file")
         .describe("db","Database location")
+        .describe("auth","Folder containing auth")
+        .describe("anim","Show counting animation")
+        .nargs("auth",1)
         .nargs("db",1)
         .default("o","dump.json")
         .default("db","pemilu.db")
+        .default("auth","auth/")
         .argv;
 
     let status = Database.init(argv.db);
@@ -67,8 +83,6 @@ app.on('ready', ()=>{
         json['last_signature'] = Database.getLastSignatures();
 
         if(argv.d){
-
-
             fs.writeFile(argv.o, JSON.stringify(json,null,4), 'utf8', (err)=>{
                 if(err){
                     console.error(err.message);
@@ -90,7 +104,12 @@ app.on('ready', ()=>{
 
                     let lastSig = item.last_signature;
 
-                    let authRaw = fs.readFileSync("auth_"+item.node_id+".json");
+                    let authFolder = "";
+                    if(argv.auth!==undefined){
+                        authFolder = argv.auth;
+                    }
+
+                    let authRaw = fs.readFileSync(authFolder+"auth_"+item.node_id+".json");
                     let auth = JSON.parse(authRaw);
                     if(auth.machine_key===undefined){
                         throw new Error("Auth file seem invalid for "+item.node_id);
@@ -123,18 +142,32 @@ app.on('ready', ()=>{
 
                 });
                 console.log("All data verified");
-                console.log(records);
+
+
+                if(argv.anim){
+                    for(let result in records){
+                        let candidates = Database.getCandidates(result);
+
+                        candidates.forEach((item)=>{
+                            item["count"] = records[result][item.candidate_no];
+                        });
+
+                        voteResults[result] = candidates;
+                    }
+
+                    createWindow();
+                }else{
+                    console.log(records);
+                    app.quit();
+                }
+
 
             } catch (e) {
+                dialog.showErrorBox("Error on counting",e.message);
                 console.error(e.message);
+                app.quit();
             }
-
-
         }
-
-        app.quit();
-        // createWindow();
-
     }else{
         dialog.showErrorBox("Error on database load",status["msg"]);
     }
