@@ -12,10 +12,11 @@ function addCard(type){
             </div>
             <div class="card-content">
                 <p class="title is-4">`+type.name+`</p>
+                <p class="subtitle is-5">`+type.NIM+`</p>
             </div>
             <div class="card-footer">
-                <div class="card-footer-item">
-                    <p class="subtitle is-5">`+type.NIM+`</p>
+                <div class="card-footer-item has-text-centered">
+                    <p id="count-`+type.candidate_no+`" class="is-size-1">0</p>
                 </div>
             </div>
         </div>`;
@@ -23,18 +24,56 @@ function addCard(type){
     $("#card-loc").append(insertHTML);
 }
 
+function addVote(candidateNo){
+    let counter = $("#count-"+candidateNo);
+    counter.text(parseInt(counter.text())+1);
+}
+
+function animAdd(voteData){
+    let total = 0;
+    let candidateTotal = voteData.length;
+
+    $.each(voteData,(key,val)=>{
+        total += val.count;
+    });
+
+    let totalText = total;
+
+    let voteCount = voteData.sort((a,b)=>{
+        return a.candidate_no>b.candidate_no;
+    });
+
+    console.log(voteCount);
+
+
+    let intAdd = setInterval(()=>{
+        let randomVote = -99;
+        do{
+            randomVote = Math.floor(Math.random() * candidateTotal );
+        }while(voteCount[randomVote].count<=0);
+
+        voteCount[randomVote].count--;
+        addVote(randomVote);
+        total--;
+        if(total===0){
+            clearInterval(intAdd);
+            $('#total-count').animate({'opacity': 0}, 400, function () {
+                $(this).text("Total suara = "+totalText);
+            }).animate({'opacity': 1}, 400);
+        }
+    },100);
+}
 
 $( document ).ready(function() {
+
+
     let voteData = ipcRenderer.sendSync("getVoteData");
     let voteType = ipcRenderer.sendSync("getVoteType");
 
     let type = window.location.hash.substring(1);
     if(type!==""){
-        console.log(voteType);
 
         let typeObj = voteType.find(item => {return item.type === type});
-
-        console.log(typeObj);
 
         $("#count-type").text(typeObj.title);
 
@@ -42,6 +81,10 @@ $( document ).ready(function() {
         $.each(voteResult,(key,val)=>{
             addCard(val);
         });
+
+        animAdd(voteResult);
+
+
     }else{
         alert("Error no type specified");
     }
