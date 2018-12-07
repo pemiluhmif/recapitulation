@@ -1,6 +1,8 @@
 const $ = require("jquery");
 const {ipcRenderer} = require("electron");
 
+const VOTE_COUNT_TIMER = 1000;
+
 let voteResult = [];
 
 function addCard(type){
@@ -62,11 +64,10 @@ function animAdd(voteData){
             }).animate({'opacity': 1}, 400);
             $("#return-button").animate({opacity:1},400);
         }
-    },200);
+    },VOTE_COUNT_TIMER);
 }
 
 $( document ).ready(function() {
-
 
     let voteData = ipcRenderer.sendSync("getVoteData");
     let voteType = ipcRenderer.sendSync("getVoteType");
