@@ -22,10 +22,14 @@ function createWindow () {
         event.returnValue = voteResults;
     });
 
+    ipcMain.on("getVoteType",(event,args)=>{
+        event.returnValue = Database.getConfig("voting_types");
+    });
+
     // win.setMenu(null);
     win.loadFile('anim/index.html');
     win.focus();
-    // win.webContents.openDevTools();
+    win.webContents.openDevTools();
     win.setFullScreen(true);
 
     // Emitted when the window is closed.
